@@ -15,7 +15,7 @@ const db = mysql.createConnection({
   user: process.env.DB_USER,     // e.g., your username
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-  ssl: { rejectUnauthorized: true } // needed for PlanetScale / Aiven
+  ssl: { rejectUnauthorized: false } // needed for PlanetScale / Aiven
 });
 
 db.connect((err) => {
