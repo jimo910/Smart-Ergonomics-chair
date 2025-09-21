@@ -1,5 +1,4 @@
-  // server.js (Backend for Smart Ergonomic Chair Dashboard)
-// server.js - Smart Ergonomic Chair Dashboard with MySQL
+// server.js - Smart Ergonomic Chair Dashboard with MySQL + WebSocket
 
 const express = require("express");
 const http = require("http");
@@ -8,43 +7,39 @@ const bodyParser = require("body-parser");
 const path = require("path");
 const mysql = require("mysql2");
 
-
-//const PORT = process.env.PORT || 3000;
+// ---------------------
+// Database Connection
+// ---------------------
 const db = mysql.createConnection({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
+  host: process.env.DB_HOST,     // e.g., aws.connect.psdb.cloud
+  user: process.env.DB_USER,     // e.g., your username
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-  // optional SSL config if provider requires it:
-  // ssl: { rejectUnauthorized: true }
+  ssl: { rejectUnauthorized: true } // needed for PlanetScale / Aiven
 });
 
-// Create Express app + HTTP server
+db.connect((err) => {
+  if (err) {
+    console.error("❌ MySQL Connection Failed:", err);
+    process.exit(1);
+  }
+  console.log("✅ Connected to MySQL Database");
+});
+
+// ---------------------
+// Express + WebSocket
+// ---------------------
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 // Middleware
 app.use(bodyParser.json());
-app.use(express.static(path.join(__dirname, "public"))); // serve frontend files
+app.use(express.static(path.join(__dirname, "public"))); // serve frontend
 
-// ✅ MySQL Connection
-//const db = mysql.createConnection({
-//  host: "localhost",
-//  user: "root",       // change if you use another user
-  //password: "Yamjam@2020",       // set your MySQL password here
-  //database: "smart_chair"
-//});
-
-//db.connect((err) => {
-  //if (err) {
-    //console.error("❌ MySQL Connection Failed:", err);
-    //process.exit(1);
-  //}
-  //console.log("✅ Connected to MySQL Database");
-//});
-
-// Store latest data in memory for WebSocket clients
+// ---------------------
+// State
+// ---------------------
 let latestData = {
   timestamp: new Date().toISOString(),
   heartRate: 0,
@@ -52,14 +47,19 @@ let latestData = {
   sugarLevel: 0
 };
 
-// Handle WebSocket connections
+// ---------------------
+// WebSocket Handling
+// ---------------------
 wss.on("connection", (ws) => {
-  console.log("🔗 New WebSocket client connected");
-  // Send latest data immediately
+  console.log("🔗 WebSocket client connected");
   ws.send(JSON.stringify(latestData));
 });
 
-// 📥 POST /data → receive new sensor readings
+// ---------------------
+// Routes
+// ---------------------
+
+// 📥 POST /data → receive sensor data
 app.post("/data", (req, res) => {
   const { heartRate, temperature, sugarLevel } = req.body;
 
@@ -72,19 +72,22 @@ app.post("/data", (req, res) => {
 
   console.log("📥 Data Received:", latestData);
 
-  // Save into MySQL
-  const sql = "INSERT INTO readings (heartRate, temperature, sugarLevel) VALUES (?, ?, ?)";
-  db.query(sql, [latestData.heartRate, latestData.temperature, latestData.sugarLevel], (err, result) => {
-    if (err) {
-      console.error("❌ MySQL Insert Error:", err);
-      res.status(500).json({ status: "error", error: err });
-    } else {
+  const sql =
+    "INSERT INTO readings (heartRate, temperature, sugarLevel) VALUES (?, ?, ?)";
+  db.query(
+    sql,
+    [latestData.heartRate, latestData.temperature, latestData.sugarLevel],
+    (err, result) => {
+      if (err) {
+        console.error("❌ MySQL Insert Error:", err);
+        return res.status(500).json({ status: "error", error: err });
+      }
       console.log("💾 Data saved to MySQL, Insert ID:", result.insertId);
       res.json({ status: "success", data: latestData });
     }
-  });
+  );
 
-  // Broadcast to all WebSocket clients
+  // broadcast to WebSocket clients
   wss.clients.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) {
       client.send(JSON.stringify(latestData));
@@ -97,19 +100,23 @@ app.get("/data", (req, res) => {
   res.json(latestData);
 });
 
-// 📤 GET /reports → last 50 saved readings
+// 📤 GET /reports → last 50 rows
 app.get("/reports", (req, res) => {
-  db.query("SELECT * FROM readings ORDER BY timestamp DESC LIMIT 50", (err, results) => {
-    if (err) {
-      console.error("❌ MySQL Query Error:", err);
-      res.status(500).json({ status: "error", error: err });
-    } else {
+  db.query(
+    "SELECT * FROM readings ORDER BY timestamp DESC LIMIT 50",
+    (err, results) => {
+      if (err) {
+        console.error("❌ MySQL Query Error:", err);
+        return res.status(500).json({ status: "error", error: err });
+      }
       res.json(results);
     }
-  });
+  );
 });
 
+// ---------------------
 // Start server
+// ---------------------
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`🚀 Server running at http://localhost:${PORT}`);
