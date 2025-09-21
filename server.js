@@ -9,7 +9,7 @@ const path = require("path");
 const mysql = require("mysql2");
 
 
-const PORT = process.env.PORT || 3000;
+//const PORT = process.env.PORT || 3000;
 const db = mysql.createConnection({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
