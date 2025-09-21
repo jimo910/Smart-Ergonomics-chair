@@ -29,20 +29,20 @@ app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, "public"))); // serve frontend files
 
 // ✅ MySQL Connection
-const db = mysql.createConnection({
-  host: "localhost",
-  user: "root",       // change if you use another user
-  password: "Yamjam@2020",       // set your MySQL password here
-  database: "smart_chair"
-});
+//const db = mysql.createConnection({
+//  host: "localhost",
+//  user: "root",       // change if you use another user
+  //password: "Yamjam@2020",       // set your MySQL password here
+  //database: "smart_chair"
+//});
 
-db.connect((err) => {
-  if (err) {
-    console.error("❌ MySQL Connection Failed:", err);
-    process.exit(1);
-  }
-  console.log("✅ Connected to MySQL Database");
-});
+//db.connect((err) => {
+  //if (err) {
+    //console.error("❌ MySQL Connection Failed:", err);
+    //process.exit(1);
+  //}
+  //console.log("✅ Connected to MySQL Database");
+//});
 
 // Store latest data in memory for WebSocket clients
 let latestData = {
